@@ -1,0 +1,196 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>hMailServer Offline Log Viewer</title>
+		<link href='http://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+		<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+		<style type="text/css">
+			body {
+				font-family: 'Ubuntu Mono', monospace;
+				font-size: 12px
+			}
+			div.event {
+				border: 1px solid #CCC;
+				margin: .4em;
+				padding: .4em;
+			}
+			div.event a.tag {
+				display: block;
+				float: right;
+				border: 1px solid #333;
+				background: #CCC;
+				padding: .4em;
+				margin-left: .4em
+			}
+
+			div.event:hover {
+				background: #EEE;
+			}
+			div.event .line:hover {
+				background: #DDD;
+			}
+
+			/* Line styles */
+			div.event .line div {
+				display: inline-block;
+				margin-right: .4em
+			}
+
+			/* This is some internal ID or code I don't know yet, so it is hidden */
+			div.event .line .column-1 {
+				display: none
+			}
+			div.event.type-SMTPD .column-2, div.event.type-SMTPC .column-2 {
+				display: none
+			}
+			/* IP */
+			div.event.type-SMTPD .column-4, div.event.type-SMTPC .column-4 {
+				font-weight: bold;
+			}
+
+			div.line-container {
+				overflow: hidden
+			}
+
+			/* Clearfix */
+			.cf:before,
+			.cf:after {
+				content: " "; /* 1 */
+				display: table; /* 2 */
+			}
+
+			.cf:after {
+				clear: both;
+			}
+			.cf {
+				*zoom: 1;
+			}
+		</style>
+		<script type="text/javascript">
+			var file, intv, size, position;
+			$(function() {
+				$("#logfile").change(function() {
+					file = $(this).prop('files')[0];
+					if (!file)
+						alert('You need to select a log file.');
+
+					// Initialize
+					$("div.log_container").html('');
+					window.clearInterval(intv);
+					size = file.size;
+					position = 0;
+
+					// If the log is bigger than 10K we'll start from the last 10K to avoid possible browser crash.
+					if (size > 1024 * 10) {
+						position = size - 1024 * 10;
+
+						// But probably this position located at middle of the line, so we try to find next new line and put the start mark there.
+						var reader = new FileReader();
+						reader.onloadend = function(evt) {
+							if (evt.target.readyState == FileReader.DONE) {
+								position += evt.target.result.indexOf("\r\n") + 2;
+								intv = window.setInterval(function() {
+									read(position)
+								}, 500);
+							}
+						};
+						var blob = file.slice(position, position + 1000);
+						reader.readAsBinaryString(blob);
+					}
+				});
+			});
+
+			function read(startByte, endByte) {
+				var reader = new FileReader();
+
+				var start = parseInt(startByte) || 0;
+				var end = parseInt(endByte) || file.size;
+
+				if (start == end)
+					return;
+
+				reader.onloadend = function(evt) {
+					if (evt.target.readyState == FileReader.DONE) {
+						parse(evt.target.result);
+						// To keep browser up and running, we're limiting the on-screen log threads.
+						$("div.log_container .event").slice(100).remove();
+						position = end;
+					}
+				};
+
+				var blob = file.slice(start, end);
+				reader.readAsBinaryString(blob);
+			}
+
+			function parse(text) {
+				// Hmailserver is a Windows application so the line termination is \r\n
+				var lines = text.split("\r\n");
+				var data;
+				var container = $("div.log_container");
+
+				$.each(lines, function(k, v) {
+					data = v.replace(/"/g, "").split("\t");
+
+					switch (data[0]) {
+						case 'ERROR':
+							// 4 columns, no grouping.
+							var elem = $('<div class="event type-' + data[0] + ' cf"><a class="tag tag-ERROR">ERROR</a><div class="line-container"><div class="line"><div class="column-1"></div><div class="column-2"></div><div class="column-3"></div></div></div></div>');
+							$(".column-1", elem).text(data[1]);
+							$(".column-2", elem).text(data[2]);
+							$(".column-3", elem).text(data[3]);
+							container.html(elem[0].outerHTML + container.html());
+							break;
+
+						case 'SMTPD':
+						case 'SMTPC':
+							// 5 columns, grouped by [2]
+							var elem;
+
+							if ($("#thread-" + data[0] + '-' + data[2]).length > 0) {
+								elem = $("#thread-" + data[0] + '-' + data[2] + " .line-container");
+							} else {
+								$('<div id="thread-' + data[0] + '-' + data[2] + '" class="event type-' + data[0] + ' cf"><a class="tag tag-' + data[0] + '">' + data[0] + '</a><a class="tag tag-thread">' + data[2] + '</a><div class="line-container"></div></div>')
+										.prependTo(container);
+								elem = $("#thread-" + data[0] + '-' + data[2] + " .line-container");
+							}
+
+							line = $('<div class="line"><div class="column-1"></div><div class="column-2"></div><div class="column-3"></div><div class="column-4"></div><div class="column-5"></div></div>');
+							$(".column-1", line).text(data[1]);
+							$(".column-2", line).text(data[2]);
+							$(".column-3", line).text(data[3]);
+							$(".column-4", line).text(data[4]);
+							$(".column-5", line).text(data[5]);
+							elem.html(line[0].outerHTML + elem.html());
+							break;
+
+
+						default:
+							return true; // something we do not understand, so continue;
+					}
+				})
+
+			}
+
+			// http://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
+			function bytesToSize(bytes) {
+				var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+				if (bytes == 0)
+					return '0 Bytes';
+				var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+				return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+			}
+		</script>
+	</head>
+	<body>
+		<div class="file_container">
+			<p>Select your hmail log file. </p>
+			<input type="file" id="logfile" name="file" />
+			<p>If you select any other file it will probably crash your browser so please don't do that.</p>
+		</div>
+		<hr>
+		<div class="log_container">
+			Your logs will show here.
+		</div>
+	</body>
+</html>
