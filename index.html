@@ -60,7 +60,7 @@
 
 			var options = {
 				parseSize: 50, // Parses only last n kilobytes. Value of 0 will parse entire file but not recommended for performance reasons.
-				displayLimit: 0, // Limits displayed event group count.  Value of 0 will display all events.
+				displayLimit: 100, // Limits displayed event group count.  Value of 0 will display all events.
 				updateInterval: 500, // Update interval, in miliseconds. Lower value means frequent updates.
 				newLine: "\r\n"
 			};
@@ -101,7 +101,7 @@
 					position = 0;
 
 					if (options.parseSize > 0 && size > 1024 * options.parseSize) {
-						// As we cut from middle of the file, this position most likeliy located at middle of the line.			
+						// As we cut from middle of the file, this position most likely located at middle of the line.			
 						position = size - 1024 * options.parseSize;
 
 						// We try to find next new line and put the start mark there.
@@ -216,6 +216,33 @@
 						return match.slice(1);
 					return (obj[name] != null) ? escapeHtml(obj[name]) : '';
 				});
+			};
+
+			// http://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
+			function bytesToSize(bytes) {
+				var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+				if (bytes == 0)
+					return '0 Bytes';
+				var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+				return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+			}
+
+			// http://stackoverflow.com/a/15016605
+			decodeBase64 = function(s) {
+				var e = {}, i, b = 0, c, x, l = 0, a, r = '', w = String.fromCharCode, L = s.length;
+				var A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+				for (i = 0; i < 64; i++) {
+					e[A.charAt(i)] = i;
+				}
+				for (x = 0; x < L; x++) {
+					c = e[s.charAt(x)];
+					b = (b << 6) + c;
+					l += 6;
+					while (l >= 8) {
+						((a = (b >>> (l -= 8)) & 0xff) || (x < (L - 2))) && (r += w(a));
+					}
+				}
+				return r;
 			};
 
 			// for debug purposes
