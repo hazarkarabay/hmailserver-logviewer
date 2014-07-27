@@ -72,7 +72,23 @@
 
 						// Long line snipper.
 						if (data[5].length > 100) {
-							data[5] = data[5].substr(0, 40) + ' ···8<··· ' + data[5].substr(data[5].length - 40, data[5].length);
+							data[5] = data[5].substr(0, 40) + '···8<···' + data[5].substr(data[5].length - 40, data[5].length);
+						}
+
+						// AUTH LOGIN decoder.
+						// First we get a RECEIVED: AUTH LOGIN
+						// The next RECEIVED: line contains login username which is e-mail address, base64 encoded.
+						if (typeof window._cfDataStorage != "object")
+							window._cfDataStorage = {};
+
+						if (typeof window._cfDataStorage[data[0] + data[2]] != "undefined" && data[5].indexOf('RECEIVED: ') > -1) {
+							// We got it.
+							var base64 = data[5].substr(data[5].lastIndexOf(" ")+1, data[5].length);
+							data[5] = 'RECEIVED: ' + decodeBase64(base64);
+							delete window._cfDataStorage[data[0] + data[2]];
+						} else if (data[5].indexOf('RECEIVED: AUTH LOGIN') > -1) {
+							// Wait for it.
+							window._cfDataStorage[data[0] + data[2]] = true;
 						}
 
 						return data;
