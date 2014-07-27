@@ -97,6 +97,10 @@
 						};
 						var blob = file.slice(position, position + 1000);
 						reader.readAsBinaryString(blob);
+					} else {
+						intv = window.setInterval(function() {
+							read(position)
+						}, 500);
 					}
 				});
 			});
@@ -171,26 +175,17 @@
 				})
 
 			}
-
-			// http://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
-			function bytesToSize(bytes) {
-				var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-				if (bytes == 0)
-					return '0 Bytes';
-				var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-				return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
-			}
 		</script>
 	</head>
 	<body>
-		<div class="file_container">
-			<p>Select your hmail log file. </p>
-			<input type="file" id="logfile" name="file" />
-			<p>If you select any other file it will probably crash your browser so please don't do that.</p>
-		</div>
-		<hr>
-		<div class="log_container">
-			Your logs will show here.
-		</div>
-	</body>
+	<div class="file_container">
+		<p>Select your hmail log file. </p>
+		<input type="file" id="logfile" name="file" />
+		<p>If you select any other file it will probably crash your browser so please don't do that.</p>
+	</div>
+	<hr>
+	<div class="log_container">
+		Your logs will show here.
+	</div>
+</body>
 </html>
