@@ -24,7 +24,7 @@
 				margin: 0 0 .4em .4em
 			}
 			div.event a.tag-ip {
-				clear: both
+				clear: right
 			}
 			div.event:hover {
 				background: #EEE;
@@ -34,9 +34,6 @@
 			}
 
 			/* Line styles */
-			div.line-container {
-				overflow: hidden
-			}
 			div.event .line div {
 				display: inline-block;
 				margin-right: .4em
@@ -71,15 +68,14 @@
 					groupId: 'group-{0}-{2}',
 					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><a class="tag tag-group">{2}</a><a class="tag tag-ip">{4}</a><div class="line-container"></div></div>',
 					lineHTML: '<div class="line"><div class="column-3">{3}</div><div class="column-5">{5}</div></div>',
-					columnFormatters: {
-						5: function() {
-							alert(dump(arguments))
-						}
+					columnFormatter: function(data) {
+						//alert(dump(arguments))
+						return data;
 					}
 				},
 				ERROR: {
 					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><div class="line-container"></div></div>',
-					lineHTML: '<div class="line"><div class="column-1">{1}</div><div class="column-2">{2}</div><div class="column-3">{3}</div><div class="column-5">{5}</div></div>'
+					lineHTML: '<div class="line"><div class="column-2">{2}</div><div class="column-3">{3}</div></div>'
 				}
 			};
 
@@ -168,6 +164,12 @@
 
 					if (typeof events[data[0]] != "undefined") {
 						var eTempCache = events[data[0]];
+
+						// Run column formatters if exists
+						if (typeof eTempCache.columnFormatter == 'function') {
+							data = eTempCache.columnFormatter(data);
+						}
+
 						if (typeof eTempCache.groupId != "undefined") {
 							// This event type has to be grouped.
 							if ($("#" + eTempCache.groupId.substitute(data), container).length == 0) {
