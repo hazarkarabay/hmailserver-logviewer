@@ -77,6 +77,26 @@
 				newLine: "\r\n"
 			};
 
+			// This holds known events and their formatting.
+			var events = {
+				SMTPD: {
+					groupId: 'group-{0}-{2}',
+					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><a class="tag tag-group">{2}</a><div class="line-container"></div></div>',
+					lineHTML: '<div class="line"><div class="column-1">{1}</div><div class="column-2">{2}</div><div class="column-3">{3}</div><div class="column-4">{4}</div><div class="column-5">{5}</div></div>'
+				},
+				SMTPC: {
+					groupId: 'group-{0}-{2}',
+					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><a class="tag tag-group">{2}</a><div class="line-container"></div></div>',
+					lineHTML: '<div class="line"><div class="column-1">{1}</div><div class="column-2">{2}</div><div class="column-3">{3}</div><div class="column-4">{4}</div><div class="column-5">{5}</div></div>'
+				},
+				ERROR: {
+					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><div class="line-container"></div></div>',
+					lineHTML: '<div class="line"><div class="column-1">{1}</div><div class="column-2">{2}</div><div class="column-3">{3}</div><div class="column-5">{5}</div></div>'
+				}
+			};
+
+			var base64Matcher = new RegExp("^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})([=]{1,2})?$");
+
 			$(function() {
 				$("#logfile").change(function() {
 					file = $(this).prop('files')[0];
@@ -100,6 +120,7 @@
 								position += evt.target.result.indexOf(options.newLine) + options.newLine.length;
 
 								// Start the loop
+								read(position);
 								intv = window.setInterval(function() {
 									read(position)
 								}, options.updateInterval);
@@ -109,6 +130,7 @@
 						reader.readAsBinaryString(blob);
 					} else {
 						// Start the loop
+						read(position);
 						intv = window.setInterval(function() {
 							read(position)
 						}, options.updateInterval);
@@ -141,52 +163,80 @@
 			}
 
 			function parse(text) {
-				// Hmailserver is a Windows application so the line termination is \r\n
 				var lines = text.split(options.newLine);
-				var data;
+				var data, elem;
 				var container = $("div.log_container");
 
+				var parent = container.parent();
+				container.detach();
+
+				console.time('parse');
 
 				$.each(lines, function(k, v) {
 					data = v.replace(/"/g, "").split("\t");
 
-					switch (data[0]) {
-						case 'ERROR':
-							// 4 columns, no grouping.
-							var elem = $('<div class="event type-' + data[0] + ' cf"><a class="tag tag-ERROR">ERROR</a><div class="line-container"><div class="line"><div class="column-1"></div><div class="column-2"></div><div class="column-3"></div></div></div></div>');
-							$(".column-1", elem).text(data[1]);
-							$(".column-2", elem).text(data[2]);
-							$(".column-3", elem).text(data[3]);
-							container.html(elem[0].outerHTML + container.html());
-							break;
+					if (typeof events[data[0]] != "undefined") {
+						var eTempCache = events[data[0]];
+						if (typeof eTempCache.groupId != "undefined") {
+							// This event type has to be grouped.
+							if ($("#" + eTempCache.groupId.substitute(data), container).length == 0) {
+								// Let's create it.								
+								container.prepend($.parseHTML(eTempCache.groupHTML.substitute(data)));
+							} // Else it is already exists.
+							elem = $("#" + eTempCache.groupId.substitute(data) + ' div.line-container', container);
+						} else {
+							// This is one shot event.
+							elem = $($.parseHTML(eTempCache.groupHTML.substitute(data))).prependTo(container).find('div.line-container');
+						}
 
-						case 'SMTPD':
-						case 'SMTPC':
-							// 5 columns, grouped by [2]
-							var elem;
+						// Add line
+						elem.prepend($.parseHTML(eTempCache.lineHTML.substitute(data)));
 
-							if ($("#thread-" + data[0] + '-' + data[2]).length > 0) {
-								elem = $("#thread-" + data[0] + '-' + data[2] + " .line-container");
-							} else {
-								$('<div id="thread-' + data[0] + '-' + data[2] + '" class="event type-' + data[0] + ' cf"><a class="tag tag-' + data[0] + '">' + data[0] + '</a><a class="tag tag-thread">' + data[2] + '</a><div class="line-container"></div></div>')
-										.prependTo(container);
-								elem = $("#thread-" + data[0] + '-' + data[2] + " .line-container");
-							}
-
-							line = $('<div class="line"><div class="column-1"></div><div class="column-2"></div><div class="column-3"></div><div class="column-4"></div><div class="column-5"></div></div>');
-							$(".column-1", line).text(data[1]);
-							$(".column-2", line).text(data[2]);
-							$(".column-3", line).text(data[3]);
-							$(".column-4", line).text(data[4]);
-							$(".column-5", line).text(data[5]);
-							elem.html(line[0].outerHTML + elem.html());
-							break;
-
-
-						default:
-							return true; // something we do not understand, so continue;
-					}
+					} else
+						return true; // continue;
 				});
+
+				console.timeEnd('parse');
+
+				console.time('repaint');
+				parent.append(container);
+				console.timeEnd('repaint');
+			}
+
+			String.prototype.substitute = function(obj) {
+				return String(this).replace(/\\?\{([^{}]+)\}/g, function(match, name) {
+					if (match.charAt(0) == '\\')
+						return match.slice(1);
+					return (obj[name] != null) ? obj[name] : '';
+				});
+			};
+
+			// for debug purposes
+			function dump(arr, level) {
+				var dumped_text = "";
+				if (!level)
+					level = 0;
+
+				//The padding given at the beginning of the line.
+				var level_padding = "";
+				for (var j = 0; j < level + 1; j++)
+					level_padding += "    ";
+
+				if (typeof (arr) == 'object') { //Array/Hashes/Objects 
+					for (var item in arr) {
+						var value = arr[item];
+
+						if (typeof (value) == 'object') { //If it is an array,
+							dumped_text += level_padding + "'" + item + "' ...\n";
+							dumped_text += dump(value, level + 1);
+						} else {
+							dumped_text += level_padding + "'" + item + "' => \"" + value + "\"\n";
+						}
+					}
+				} else { //Stings/Chars/Numbers etc.
+					dumped_text = "===>" + arr + "<===(" + typeof (arr) + ")";
+				}
+				return dumped_text;
 			}
 
 		</script>
