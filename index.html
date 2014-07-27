@@ -26,6 +26,11 @@
 			div.event a.tag-ip {
 				clear: right
 			}
+			div.event a.tag-ip img {
+				display: inline-block;
+				vertical-align: middle;
+				margin-right: .4em
+			}
 			div.event:hover {
 				background: #EEE;
 			}
@@ -59,7 +64,8 @@
 				parseSize: 50, // Parses only last n kilobytes. Value of 0 will parse entire file but not recommended for performance reasons.
 				displayLimit: 100, // Limits displayed event group count.  Value of 0 will display all events.
 				updateInterval: 500, // Update interval, in miliseconds. Lower value means frequent updates.
-				newLine: "\r\n"
+				newLine: "\r\n",
+				flagPath: 'https://raw.githubusercontent.com/hazarkarabay/hmailserver-logviewer/master/flags/'
 			};
 
 			// This holds known events and their formatting.
@@ -83,7 +89,7 @@
 
 						if (typeof window._cfDataStorage[data[0] + data[2]] != "undefined" && data[5].indexOf('RECEIVED: ') > -1) {
 							// We got it.
-							var base64 = data[5].substr(data[5].lastIndexOf(" ")+1, data[5].length);
+							var base64 = data[5].substr(data[5].lastIndexOf(" ") + 1, data[5].length);
 							data[5] = 'RECEIVED: ' + decodeBase64(base64);
 							delete window._cfDataStorage[data[0] + data[2]];
 						} else if (data[5].indexOf('RECEIVED: AUTH LOGIN') > -1) {
@@ -142,6 +148,11 @@
 						}, options.updateInterval);
 					}
 				});
+
+				// IP lookup loop
+				window.setInterval(function() {
+					IPLookup();
+				}, options.updateInterval);
 			});
 
 			function read(startByte, endByte) {
@@ -213,6 +224,49 @@
 				console.time('repaint');
 				parent.append(container);
 				console.timeEnd('repaint');
+			}
+
+			function IPLookup() {
+				if (typeof window._hmLogIPLookup != "object")
+					window._hmLogIPLookup = {
+						running: false,
+						data: {}
+					};
+
+				var cache = window._hmLogIPLookup;
+
+				if (cache.running)
+					return false;
+
+				// Loop each .event which contains a class="tag tag-ip"
+				// We don't want to DDoS that free service, so we limit our parallel queries.
+				if ($(".log_container a.tag-ip:not(.processed)").length) {
+					cache.running = true;
+					$.when($(".log_container a.tag-ip:not(.processed)").slice(0, 3).each(function() {
+						var elem = $(this);
+						var ip = elem.text();
+
+						// Cache control
+						if (cache.data[ip]) {
+							var flag = options.flagPath + cache.data[ip]['country_code'].toLowerCase() + '.png';
+							elem.prepend('<img src="' + flag + '" title="' + cache.data[ip]['country_name'] + ' ' + cache.data[ip]['region_name'] + '" />');
+							elem.addClass('processed');
+						} else {
+							$.get("http://freegeoip.net/json/" + ip)
+									.done(function(data) {
+										console.log(data);
+										cache.data[ip] = data;
+										var flag = options.flagPath + cache.data[ip]['country_code'].toLowerCase() + '.png';
+										elem.prepend('<img src="' + flag + '" title="' + cache.data[ip]['country_name'] + ' ' + cache.data[ip]['region_name'] + '" />');
+										elem.addClass('processed');
+									}, "json");
+						}
+					}))
+							.then(function() {
+								cache.running = false;
+							});
+				}
+
 			}
 
 			// Helper functions
