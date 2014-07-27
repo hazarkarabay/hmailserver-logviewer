@@ -1,9 +1,10 @@
 hmailserver-logviewer
 =====================
 
-A HTML5 based realtime hMailServer log viewer. 
+A realtime hMailServer log viewer which works in your browser.
 
-Save the index.html on your computer and launch it with your HTML5 File API supporting browser. 
+Save the HTML file on your computer and launch it with your HTML5 capable browser. 
+HTML5 File API support is required to run. Every recent browser has that support. For detailed information, see http://caniuse.com/#feat=fileapi
 
 Your log file will be parsed each half seconds at its default.
 For now its only "feature" is thread grouping, so you will see your SMTP logs neatly.
