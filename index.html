@@ -21,9 +21,11 @@
 				border: 1px solid #333;
 				background: #CCC;
 				padding: .4em;
-				margin-left: .4em
+				margin: 0 0 .4em .4em
 			}
-
+			div.event a.tag-ip {
+				clear: both
+			}
 			div.event:hover {
 				background: #EEE;
 			}
@@ -32,25 +34,12 @@
 			}
 
 			/* Line styles */
+			div.line-container {
+				overflow: hidden
+			}
 			div.event .line div {
 				display: inline-block;
 				margin-right: .4em
-			}
-
-			/* This is some internal ID or code I don't know yet, so it is hidden */
-			div.event .line .column-1 {
-				display: none
-			}
-			div.event.type-SMTPD .column-2, div.event.type-SMTPC .column-2 {
-				display: none
-			}
-			/* IP */
-			div.event.type-SMTPD .column-4, div.event.type-SMTPC .column-4 {
-				font-weight: bold;
-			}
-
-			div.line-container {
-				overflow: hidden
 			}
 
 			/* Clearfix */
@@ -59,7 +48,6 @@
 				content: " "; /* 1 */
 				display: table; /* 2 */
 			}
-
 			.cf:after {
 				clear: both;
 			}
@@ -81,19 +69,22 @@
 			var events = {
 				SMTPD: {
 					groupId: 'group-{0}-{2}',
-					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><a class="tag tag-group">{2}</a><div class="line-container"></div></div>',
-					lineHTML: '<div class="line"><div class="column-1">{1}</div><div class="column-2">{2}</div><div class="column-3">{3}</div><div class="column-4">{4}</div><div class="column-5">{5}</div></div>'
-				},
-				SMTPC: {
-					groupId: 'group-{0}-{2}',
-					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><a class="tag tag-group">{2}</a><div class="line-container"></div></div>',
-					lineHTML: '<div class="line"><div class="column-1">{1}</div><div class="column-2">{2}</div><div class="column-3">{3}</div><div class="column-4">{4}</div><div class="column-5">{5}</div></div>'
+					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><a class="tag tag-group">{2}</a><a class="tag tag-ip">{4}</a><div class="line-container"></div></div>',
+					lineHTML: '<div class="line"><div class="column-3">{3}</div><div class="column-5">{5}</div></div>',
+					columnFormatters: {
+						5: function() {
+							alert(dump(arguments))
+						}
+					}
 				},
 				ERROR: {
 					groupHTML: '<div id="group-{0}-{2}" class="event type-{0} cf"><a class="tag">{0}</a><div class="line-container"></div></div>',
 					lineHTML: '<div class="line"><div class="column-1">{1}</div><div class="column-2">{2}</div><div class="column-3">{3}</div><div class="column-5">{5}</div></div>'
 				}
 			};
+
+			// SMTPC is same thing as SMTPD and I hate repeating things.
+			events.SMTPC = events.SMTPD;
 
 			var base64Matcher = new RegExp("^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})([=]{1,2})?$");
 
@@ -203,6 +194,7 @@
 				console.timeEnd('repaint');
 			}
 
+			// Helper functions
 			var entityMap = {
 				"&": "&amp;",
 				"<": "&lt;",
