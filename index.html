@@ -203,11 +203,26 @@
 				console.timeEnd('repaint');
 			}
 
+			var entityMap = {
+				"&": "&amp;",
+				"<": "&lt;",
+				">": "&gt;",
+				'"': '&quot;',
+				"'": '&#39;',
+				"/": '&#x2F;'
+			};
+
+			function escapeHtml(string) {
+				return String(string).replace(/[&<>"'\/]/g, function(s) {
+					return entityMap[s];
+				});
+			}
+
 			String.prototype.substitute = function(obj) {
 				return String(this).replace(/\\?\{([^{}]+)\}/g, function(match, name) {
 					if (match.charAt(0) == '\\')
 						return match.slice(1);
-					return (obj[name] != null) ? obj[name] : '';
+					return (obj[name] != null) ? escapeHtml(obj[name]) : '';
 				});
 			};
 
