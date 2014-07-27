@@ -2,8 +2,8 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>hMailServer Offline Log Viewer</title>
-		<link href='http://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+	<title>hMailServer Offline Log Viewer</title>
+	<link href='http://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
 		<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
 		<style type="text/css">
 			body {
@@ -69,6 +69,14 @@
 		</style>
 		<script type="text/javascript">
 			var file, intv, size, position;
+
+			var options = {
+				parseSize: 50, // Parses only last n kilobytes. Value of 0 will parse entire file but not recommended for performance reasons.
+				displayLimit: 0, // Limits displayed event group count.  Value of 0 will display all events.
+				updateInterval: 500, // Update interval, in miliseconds. Lower value means frequent updates.
+				newLine: "\r\n"
+			};
+
 			$(function() {
 				$("#logfile").change(function() {
 					file = $(this).prop('files')[0];
@@ -81,26 +89,29 @@
 					size = file.size;
 					position = 0;
 
-					// If the log is bigger than 10K we'll start from the last 10K to avoid possible browser crash.
-					if (size > 1024 * 10) {
-						position = size - 1024 * 10;
+					if (options.parseSize > 0 && size > 1024 * options.parseSize) {
+						// As we cut from middle of the file, this position most likeliy located at middle of the line.			
+						position = size - 1024 * options.parseSize;
 
-						// But probably this position located at middle of the line, so we try to find next new line and put the start mark there.
+						// We try to find next new line and put the start mark there.
 						var reader = new FileReader();
 						reader.onloadend = function(evt) {
 							if (evt.target.readyState == FileReader.DONE) {
-								position += evt.target.result.indexOf("\r\n") + 2;
+								position += evt.target.result.indexOf(options.newLine) + options.newLine.length;
+
+								// Start the loop
 								intv = window.setInterval(function() {
 									read(position)
-								}, 500);
+								}, options.updateInterval);
 							}
 						};
 						var blob = file.slice(position, position + 1000);
 						reader.readAsBinaryString(blob);
 					} else {
+						// Start the loop
 						intv = window.setInterval(function() {
 							read(position)
-						}, 500);
+						}, options.updateInterval);
 					}
 				});
 			});
@@ -117,8 +128,10 @@
 				reader.onloadend = function(evt) {
 					if (evt.target.readyState == FileReader.DONE) {
 						parse(evt.target.result);
-						// To keep browser up and running, we're limiting the on-screen log threads.
-						$("div.log_container .event").slice(100).remove();
+						if (options.displayLimit > 0) {
+							// To keep browser up and running, we're limiting the on-screen log threads.
+							$("div.log_container .event").slice(options.displayLimit).remove();
+						}
 						position = end;
 					}
 				};
@@ -129,9 +142,10 @@
 
 			function parse(text) {
 				// Hmailserver is a Windows application so the line termination is \r\n
-				var lines = text.split("\r\n");
+				var lines = text.split(options.newLine);
 				var data;
 				var container = $("div.log_container");
+
 
 				$.each(lines, function(k, v) {
 					data = v.replace(/"/g, "").split("\t");
@@ -172,16 +186,15 @@
 						default:
 							return true; // something we do not understand, so continue;
 					}
-				})
-
+				});
 			}
+
 		</script>
 	</head>
 	<body>
 	<div class="file_container">
-		<p>Select your hmail log file. </p>
+		<p><strong>hMailServer Log Parser</strong> Select your log file.</p>
 		<input type="file" id="logfile" name="file" />
-		<p>If you select any other file it will probably crash your browser so please don't do that.</p>
 	</div>
 	<hr>
 	<div class="log_container">
