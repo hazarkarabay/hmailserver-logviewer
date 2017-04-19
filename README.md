@@ -10,3 +10,5 @@ Your log file will be parsed each half seconds at its default.
 For now its only "feature" is thread grouping, so you will see your SMTP logs neatly.
 
 Feel free to enhance or use it for your forking pleasure.
+  
+[![ghit.me](https://ghit.me/badge.svg?repo=hazarkarabay/hmailserver-logviewer)](https://ghit.me/repo/hazarkarabay/hmailserver-logviewer)
